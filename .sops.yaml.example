@@ -1,0 +1,8 @@
+# sops configuration: which files are encrypted, and for whom.
+#   cp .sops.yaml.example .sops.yaml
+# then replace the recipient with YOUR age public key:
+#   age-keygen -y ~/.config/sops/age/keys.txt
+# The public key can be committed. The private key (keys.txt) NEVER.
+creation_rules:
+  - path_regex: secrets/.*\.enc\.(env|yaml)$
+    age: age1replacemewithyourpublickeyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

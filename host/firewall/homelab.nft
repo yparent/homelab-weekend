@@ -1,0 +1,62 @@
+#!/usr/sbin/nft -f
+# /etc/homelab/homelab.nft - Proxmox host firewall + NAT for the VMs.
+#
+# Dedicated table: we do not flush the whole ruleset, so the rules added by
+# Tailscale (and by the Proxmox firewall if you enable it) stay in place.
+# The "table / delete table / table {...}" sequence makes the file idempotent:
+# reloading it replaces our table atomically.
+#
+# Check syntax: nft -c -f /etc/homelab/homelab.nft
+# Load safely:  bash host/firewall/apply-with-rollback.sh
+
+# Hetzner: the physical NIC (ip -br link). OVH: "vmbr0".
+define WAN = "enp0s31f6"
+define LAN = "vmbr1"
+define LAN_NET = 10.10.10.0/24
+# Tailscale listens on this UDP port for direct WireGuard connections.
+define TAILSCALE_PORT = 41641
+
+table inet homelab
+delete table inet homelab
+
+table inet homelab {
+    chain input {
+        type filter hook input priority filter; policy drop;
+
+        ct state established,related accept
+        ct state invalid drop
+        iif "lo" accept
+
+        # Everything that comes through the tailnet: SSH (22), Proxmox UI/API (8006).
+        iifname "tailscale0" accept
+
+        # Tailscale direct connections. Without it, traffic goes through DERP relays (slower, still works).
+        udp dport $TAILSCALE_PORT accept
+
+        # ICMP / ICMPv6 (path MTU discovery, neighbor discovery, ping).
+        meta l4proto { icmp, ipv6-icmp } accept
+
+        # VMs do not need to talk to the host itself (they only go through it).
+        # Port 22 and 8006 are therefore closed from the Internet AND from the VMs.
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+
+        ct state established,related accept
+        ct state invalid drop
+
+        # VMs -> Internet (apt, container images, Helm charts...).
+        iifname $LAN oifname $WAN accept
+
+        # Tailnet -> VMs (Tailscale subnet router: ssh, kubectl, Grafana...).
+        iifname "tailscale0" oifname $LAN accept
+    }
+
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+
+        # Masquerade: the VMs go out with the public IP and the MAC of the host.
+        ip saddr $LAN_NET oifname $WAN masquerade
+    }
+}

@@ -1,0 +1,7 @@
+---
+# Saturday + Sunday in one command: ansible-playbook playbooks/site.yml
+- name: Base configuration of every VM
+  ansible.builtin.import_playbook: base.yml
+
+- name: Install k3s on the k3s_server VM
+  ansible.builtin.import_playbook: k3s.yml

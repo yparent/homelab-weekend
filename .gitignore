@@ -1,0 +1,46 @@
+# --- OpenTofu ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+terraform.tfvars
+*.auto.tfvars
+backend.hcl
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+# The lock file IS committed (pinned provider checksums).
+!.terraform.lock.hcl
+
+# --- Ansible ---
+ansible/inventory/hosts.yml
+ansible/.known_hosts
+*.retry
+.ansible/
+
+# --- Kubernetes ---
+kubeconfig/
+*.kubeconfig
+
+# --- Secrets ---
+# Clear-text env files are ignored everywhere. In secrets/, only the
+# sops-encrypted files (*.enc.env, *.enc.yaml) and the examples are committed.
+*.env
+!*.env.example
+secrets/*
+!secrets/*.example
+!secrets/*.enc.env
+!secrets/*.enc.yaml
+# age private keys
+keys.txt
+*.agekey
+
+# --- Misc ---
+.DS_Store
+*.swp
+.idea/
+.vscode/

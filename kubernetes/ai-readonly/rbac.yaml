@@ -1,0 +1,97 @@
+# Read-only identity for the AI tools (HolmesGPT, K8sGPT).
+# The AI uses the kubeconfig you give it. With this one, the API server itself
+# refuses any write, whatever the AI "decides" to run.
+#
+# What it can do:   get / list / watch on workloads, pods, logs, events, nodes...
+# What it cannot:   create, update, patch, delete, exec, port-forward,
+#                   read Secrets, read RBAC objects.
+#
+#   kubectl apply -f kubernetes/ai-readonly/rbac.yaml
+#   bash kubernetes/ai-readonly/make-readonly-kubeconfig.sh
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-readonly
+  labels:
+    app.kubernetes.io/part-of: homelab-weekend
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ai-readonly
+  namespace: ai-readonly
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ai-readonly
+rules:
+  # Core resources. "secrets" is deliberately NOT in this list.
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - pods/status
+      - services
+      - endpoints
+      - events
+      - configmaps
+      - namespaces
+      - nodes
+      - persistentvolumes
+      - persistentvolumeclaims
+      - replicationcontrollers
+      - resourcequotas
+      - limitranges
+      - serviceaccounts
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets", "controllerrevisions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  # kubectl top (metrics-server is bundled with k3s).
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods", "nodes"]
+    verbs: ["get", "list"]
+  # Prometheus Operator objects (alerts, scrape targets).
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["prometheusrules", "servicemonitors", "podmonitors", "prometheuses", "alertmanagers"]
+    verbs: ["get", "list", "watch"]
+  # Lets "kubectl api-resources" and discovery work.
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ai-readonly
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ai-readonly
+subjects:
+  - kind: ServiceAccount
+    name: ai-readonly
+    namespace: ai-readonly

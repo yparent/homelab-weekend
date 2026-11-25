@@ -1,0 +1,7 @@
+---
+- name: Restart k3s
+  ansible.builtin.systemd_service:
+    name: k3s
+    state: restarted
+  # On the very first run k3s is not installed yet when the handler is notified.
+  when: k3s_installed.rc | default(1) == 0

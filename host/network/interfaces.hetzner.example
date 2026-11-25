@@ -1,0 +1,42 @@
+# /etc/network/interfaces - Hetzner dedicated server, Proxmox VE 9
+#
+# Layout:
+#   - the public IP stays on the physical NIC (no vmbr0 here: Hetzner binds
+#     the IP to the server MAC, a bridged VM with its own MAC would be blocked);
+#   - vmbr1 is a private bridge for the VMs (10.10.10.0/24), with no physical
+#     port. VMs reach the Internet through the host NAT (host/firewall/homelab.nft).
+#
+# BEFORE you edit: note the current values, you will copy them as is.
+#   ip -br link          -> NIC name (enp0s31f6, eno1, enp7s0...)
+#   ip -4 addr           -> public IPv4
+#   ip route             -> default gateway
+#   ip -6 addr ; ip -6 route   -> IPv6 (gateway is always fe80::1 at Hetzner)
+#
+# Apply: "ifreload -a" once Proxmox (ifupdown2) is installed, or reboot.
+# A typo here = no network = rescue system. Keep the Robot panel open.
+
+source /etc/network/interfaces.d/*
+
+auto lo
+iface lo inet loopback
+
+# Physical NIC with the public IP.
+# /32 + gateway is the Hetzner recommendation: ifupdown2 adds the "onlink"
+# route to the gateway by itself.
+auto enp0s31f6
+iface enp0s31f6 inet static
+    address 203.0.113.10/32
+    gateway 203.0.113.1
+
+# Optional IPv6 (the /64 shown in Robot, pick one address in it).
+# iface enp0s31f6 inet6 static
+#     address 2001:db8:1234:5678::2/64
+#     gateway fe80::1
+
+# Private bridge for the VMs. NAT and filtering live in /etc/homelab/homelab.nft.
+auto vmbr1
+iface vmbr1 inet static
+    address 10.10.10.1/24
+    bridge-ports none
+    bridge-stp off
+    bridge-fd 0

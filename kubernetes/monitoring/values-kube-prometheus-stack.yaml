@@ -1,0 +1,113 @@
+# Values for kube-prometheus-stack, chart version 93.11.0 (checked 2026-11-25).
+#
+# Install (from the repo root, through Tailscale):
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm repo update
+#   helm upgrade --install kps prometheus-community/kube-prometheus-stack \
+#     --version 93.11.0 --namespace monitoring --create-namespace \
+#     -f kubernetes/monitoring/values-kube-prometheus-stack.yaml \
+#     --set grafana.adminPassword="$GRAFANA_ADMIN_PASSWORD"
+#
+# Everything is exposed as NodePort on the k3s VM (10.10.10.13), a private
+# address only reachable through the Tailscale subnet router:
+#   Prometheus   http://10.10.10.13:30090
+#   Alertmanager http://10.10.10.13:30903
+#   Grafana      http://10.10.10.13:30030
+
+# k3s runs the control plane in one binary and does not expose these metrics
+# endpoints by default. Left enabled, they produce permanent "TargetDown" alerts.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
+
+# The node_exporters installed by Ansible on Saturday already listen on :9100
+# on every VM. The chart's own node-exporter DaemonSet would try to bind the
+# same port on the k3s VM. We disable it and scrape ours instead (see
+# additionalScrapeConfigs below), keeping the "Node Exporter" dashboards.
+nodeExporter:
+  enabled: false
+  forceDeployDashboards: true
+
+prometheus:
+  service:
+    type: NodePort
+    nodePort: 30090
+  prometheusSpec:
+    # Pick up every ServiceMonitor / PodMonitor / PrometheusRule in the cluster,
+    # not only the ones labelled with this Helm release.
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    # Weekend lab: short retention, no persistent volume (data lost if the pod restarts).
+    retention: 2d
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1536Mi
+    additionalScrapeConfigs:
+      # job name "node-exporter": the default dashboards and recording rules
+      # of the chart select on job="node-exporter".
+      - job_name: node-exporter
+        scrape_interval: 30s
+        static_configs:
+          - targets: ["10.10.10.11:9100"]
+            labels:
+              vm: lab-vm1
+          - targets: ["10.10.10.12:9100"]
+            labels:
+              vm: lab-vm2
+          - targets: ["10.10.10.13:9100"]
+            labels:
+              vm: lab-vm3
+        relabel_configs:
+          # Show "lab-vm1" instead of "10.10.10.11:9100" in Grafana.
+          - source_labels: [vm]
+            target_label: instance
+
+alertmanager:
+  service:
+    type: NodePort
+    nodePort: 30903
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
+grafana:
+  # adminPassword is passed with --set from the sops secrets file, never stored here.
+  service:
+    type: NodePort
+    nodePort: 30030
+  defaultDashboardsTimezone: browser
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 384Mi
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      memory: 256Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 192Mi

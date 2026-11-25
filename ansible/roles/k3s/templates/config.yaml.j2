@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# Read by k3s at startup (equivalent to the command line flags).
+write-kubeconfig-mode: "0600"
+node-ip: {{ k3s_node_ip }}
+advertise-address: {{ k3s_node_ip }}
+tls-san:
+  - {{ k3s_node_ip }}
+  - {{ inventory_hostname }}
+{% if k3s_disable | length > 0 %}
+disable:
+{% for item in k3s_disable %}
+  - {{ item }}
+{% endfor %}
+{% endif %}

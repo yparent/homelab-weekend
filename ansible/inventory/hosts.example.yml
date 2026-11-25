@@ -1,0 +1,21 @@
+---
+# Example only. The real inventory (inventory/hosts.yml) is written by
+# OpenTofu at every "tofu apply" (opentofu/inventory.tf).
+# Use this file if you build the VMs by hand:
+#   cp inventory/hosts.example.yml inventory/hosts.yml
+all:
+  vars:
+    ansible_user: debian
+  children:
+    lab:
+      hosts:
+        lab-vm1:
+          ansible_host: 10.10.10.11
+        lab-vm2:
+          ansible_host: 10.10.10.12
+        lab-vm3:
+          ansible_host: 10.10.10.13
+    k3s_server:
+      hosts:
+        lab-vm3:
+          ansible_host: 10.10.10.13

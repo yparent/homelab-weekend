@@ -1,0 +1,9 @@
+# Copy to backend.hcl (ignored by Git) and set an ABSOLUTE path outside the repo.
+#   cp backend.hcl.example backend.hcl
+#   mkdir -p ~/.homelab-state
+#   tofu init -backend-config=backend.hcl
+#
+# The state describes your whole infra. It must not end up on GitHub.
+# Back it up (it is small) or move to a remote backend later (S3-compatible
+# object storage, see docs/09-git-state-secrets.md).
+path = "/home/CHANGE_ME/.homelab-state/homelab.tfstate"

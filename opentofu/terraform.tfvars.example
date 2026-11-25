@@ -1,0 +1,23 @@
+# Copy to terraform.tfvars (ignored by Git) and adapt.
+#   cp terraform.tfvars.example terraform.tfvars
+# No secret here: the Proxmox token comes from secrets/tofu.enc.env (sops).
+
+# Node name shown in the Proxmox UI (left tree), or: pvesh get /nodes
+proxmox_node = "pve"
+
+# Storage that accepts VM disks: pvesm status --content images
+#   Hetzner (Debian + Proxmox, ext4): "local" once "images" is enabled on it
+#   OVH "Proxmox VE 9" template (ZFS by default): often "local-zfs"
+datastore_id = "local"
+
+template_vm_id      = 9000
+bridge              = "vmbr1"
+vm_network_cidr     = "10.10.10.0/24"
+ssh_public_key_file = "~/.ssh/id_ed25519.pub"
+
+# Uncomment to override the 3 default VMs (see variables.tf).
+# vms = {
+#   "lab-vm1" = { vm_id = 101, host_number = 11, cores = 2, memory_mb = 4096, disk_gb = 20, groups = ["lab"] }
+#   "lab-vm2" = { vm_id = 102, host_number = 12, cores = 2, memory_mb = 4096, disk_gb = 20, groups = ["lab"] }
+#   "lab-vm3" = { vm_id = 103, host_number = 13, cores = 4, memory_mb = 8192, disk_gb = 40, groups = ["lab", "k3s_server"] }
+# }

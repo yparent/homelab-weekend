@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+# sshd keeps the FIRST value it reads: this "10-" file wins over
+# "50-cloud-init.conf" written by cloud-init.
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+X11Forwarding no
+MaxAuthTries 3
+AllowUsers {{ common_ssh_allow_users | join(' ') }}

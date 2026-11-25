@@ -1,0 +1,94 @@
+---
+- name: Check that the VM has enough memory for k3s + monitoring
+  ansible.builtin.assert:
+    that: ansible_facts['memtotal_mb'] >= k3s_min_memory_mb
+    fail_msg: >-
+      {{ inventory_hostname }} has {{ ansible_facts['memtotal_mb'] }} MB of RAM.
+      Give it at least 8192 MB in opentofu (vms.<name>.memory_mb) and run tofu apply.
+    quiet: true
+
+- name: Create /etc/rancher/k3s
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write the k3s configuration
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart k3s
+
+- name: Read the installed k3s version
+  ansible.builtin.command: /usr/local/bin/k3s --version
+  register: k3s_installed
+  changed_when: false
+  failed_when: false
+
+- name: Download the official k3s install script
+  ansible.builtin.get_url:
+    url: "{{ k3s_install_script_url }}"
+    dest: /usr/local/bin/k3s-install.sh
+    owner: root
+    group: root
+    mode: "0755"
+  when: k3s_version not in (k3s_installed.stdout | default(''))
+
+- name: Install or upgrade k3s {{ k3s_version }}
+  ansible.builtin.command: /usr/local/bin/k3s-install.sh
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_EXEC: server
+  changed_when: true
+  when: k3s_version not in (k3s_installed.stdout | default(''))
+
+- name: Enable and start k3s
+  ansible.builtin.systemd_service:
+    name: k3s
+    enabled: true
+    state: started
+
+- name: Apply a pending restart now (config change)
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for the node to be Ready
+  ansible.builtin.command: /usr/local/bin/k3s kubectl wait --for=condition=Ready node --all --timeout=30s
+  register: k3s_node_ready
+  retries: 20
+  delay: 10
+  until: k3s_node_ready.rc == 0
+  changed_when: false
+
+- name: Fetch the kubeconfig to the laptop
+  ansible.builtin.fetch:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "{{ k3s_kubeconfig_local_path }}"
+    flat: true
+
+- name: Point the kubeconfig to the private IP (reached through Tailscale)
+  ansible.builtin.replace:
+    path: "{{ k3s_kubeconfig_local_path }}"
+    regexp: 'https://127\.0\.0\.1:6443'
+    replace: "https://{{ k3s_node_ip }}:6443"
+  delegate_to: localhost
+  become: false
+
+- name: Rename the "default" context to "{{ k3s_kubeconfig_context }}"
+  ansible.builtin.replace:
+    path: "{{ k3s_kubeconfig_local_path }}"
+    regexp: '^(\s*-?\s*(?:name|cluster|user|current-context)):[ \t]+default[ \t]*$'
+    replace: '\1: {{ k3s_kubeconfig_context }}'
+  delegate_to: localhost
+  become: false
+
+- name: Restrict the kubeconfig permissions (it is cluster-admin)
+  ansible.builtin.file:
+    path: "{{ k3s_kubeconfig_local_path }}"
+    mode: "0600"
+  delegate_to: localhost
+  become: false

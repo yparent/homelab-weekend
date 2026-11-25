@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    app.kubernetes.io/part-of: homelab-weekend
+    # Pods in this namespace must respect the "restricted" security profile.
+    pod-security.kubernetes.io/enforce: restricted

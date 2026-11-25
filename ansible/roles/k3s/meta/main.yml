@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: Yohan Parent
+  description: Single-node k3s server with the kubeconfig fetched to the laptop
+  license: MIT
+  min_ansible_version: "2.18"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+dependencies: []

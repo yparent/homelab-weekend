@@ -1,0 +1,58 @@
+# Homelab alerts. Apply AFTER the Helm install (the PrometheusRule CRD must exist):
+#   kubectl apply -f kubernetes/monitoring/homelab-alerts.yaml
+#
+# Trigger HomelabNodeExporterDown:
+#   ssh debian@10.10.10.11 'sudo systemctl stop node_exporter'
+#   -> "Pending" in Prometheus after ~30 s, "Firing" after 1 more minute,
+#      then visible in Alertmanager (http://10.10.10.13:30903).
+# Resolve:
+#   ssh debian@10.10.10.11 'sudo systemctl start node_exporter'
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homelab-alerts
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  groups:
+    - name: homelab.vms
+      rules:
+        - alert: HomelabNodeExporterDown
+          expr: up{job="node-exporter"} == 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "node_exporter injoignable sur {{ $labels.instance }}"
+            description: >-
+              Prometheus ne peut plus lire les metriques de {{ $labels.instance }}
+              depuis plus d'une minute. VM eteinte, service arrete ou reseau coupe.
+              Verifie : ssh puis systemctl status node_exporter.
+
+        - alert: HomelabDiskAlmostFull
+          expr: |
+            (
+              node_filesystem_avail_bytes{job="node-exporter", fstype!~"tmpfs|overlay", mountpoint="/"}
+              / node_filesystem_size_bytes{job="node-exporter", fstype!~"tmpfs|overlay", mountpoint="/"}
+            ) < 0.15
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Disque / presque plein sur {{ $labels.instance }}"
+            description: "Il reste moins de 15 % d'espace libre sur / ({{ $value | humanizePercentage }})."
+
+    - name: homelab.apps
+      rules:
+        - alert: HomelabPodRestartingTooOften
+          expr: increase(kube_pod_container_status_restarts_total{namespace="demo"}[10m]) > 3
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Le pod {{ $labels.namespace }}/{{ $labels.pod }} redemarre en boucle"
+            description: >-
+              Plus de 3 redemarrages en 10 minutes pour le conteneur {{ $labels.container }}.
+              Regarde : kubectl -n {{ $labels.namespace }} describe pod {{ $labels.pod }}
+              puis kubectl -n {{ $labels.namespace }} logs {{ $labels.pod }} --previous

@@ -1,0 +1,29 @@
+# HolmesGPT configuration for the homelab.
+# Copy to ~/.holmes/config.yaml:
+#   mkdir -p ~/.holmes && cp kubernetes/ai-readonly/holmes-config.example.yaml ~/.holmes/config.yaml
+#
+# The API key is NOT here: export ANTHROPIC_API_KEY (or OPENAI_API_KEY) in your
+# shell, from the sops secrets file. Put a low spending cap on that key.
+
+# LiteLLM model name ("provider/model"). Model IDs change: check the current
+# list of your provider (Anthropic: platform.claude.com/docs/en/models/overview).
+model: "anthropic/claude-sonnet-5-5"
+# OpenAI instead:
+# model: "gpt-4.1"
+
+toolsets:
+  # Commands Holmes may run on YOUR laptop. "core" = read-only kubectl
+  # commands + text tools. Anything else asks for your approval.
+  bash:
+    enabled: true
+    config:
+      builtin_allowlist: "core"
+      deny:
+        - "kubectl get secret"
+        - "kubectl describe secret"
+
+  # Prometheus of the homelab, reached through Tailscale (NodePort on the k3s VM).
+  prometheus/metrics:
+    enabled: true
+    config:
+      prometheus_url: http://10.10.10.13:30090

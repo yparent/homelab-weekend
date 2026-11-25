@@ -1,0 +1,7 @@
+---
+# Sunday, step 1: single-node k3s on the VM of the k3s_server group.
+- name: Install k3s
+  hosts: k3s_server
+  become: true
+  roles:
+    - role: k3s

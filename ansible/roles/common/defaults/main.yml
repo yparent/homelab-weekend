@@ -1,0 +1,16 @@
+---
+# Base packages on every VM.
+common_packages:
+  - ca-certificates
+  - curl
+  - htop
+  - jq
+  - vim-tiny
+  - unattended-upgrades
+
+# Users allowed to log in over SSH (key only).
+common_ssh_allow_users:
+  - "{{ ansible_user }}"
+
+# Reboot automatically when an update requires it (new kernel...).
+common_reboot_if_required: true

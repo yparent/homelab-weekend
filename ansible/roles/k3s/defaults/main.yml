@@ -1,0 +1,17 @@
+---
+# Overridden by inventory/group_vars/all.yml.
+k3s_version: "v1.37.2+k3s1"
+
+k3s_install_script_url: https://get.k3s.io
+k3s_node_ip: "{{ ansible_host }}"
+
+# Below this, k3s + kube-prometheus-stack + the demo app end up OOM.
+k3s_min_memory_mb: 7500
+
+# Traefik is not needed: services are exposed as NodePort on the private network.
+k3s_disable:
+  - traefik
+
+# Kubeconfig copied to your laptop (path set in group_vars).
+k3s_kubeconfig_local_path: "{{ playbook_dir }}/../../kubeconfig/homelab.yaml"
+k3s_kubeconfig_context: homelab

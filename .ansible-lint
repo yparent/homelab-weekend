@@ -1,0 +1,16 @@
+---
+# ansible-lint configuration (run from the repo root: ansible-lint)
+profile: production
+
+# Only lint the Ansible part of the repo.
+exclude_paths:
+  - .github/
+  - kubernetes/
+  - opentofu/
+  - host/
+  - docs/
+  - secrets/
+  - .sops.yaml.example
+
+# ansible.cfg lives in ansible/: tell ansible-lint where the project is.
+project_dir: ansible
